@@ -1,36 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 
 export default function Login() {
-  const router = useRouter(); // ✅ FIX: create router instance
+  const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // 🔐 If already logged in → skip login
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      router.push("/dashboard");
+    }
+  }, []);
+
   const login = async () => {
     if (!email || !password) {
-      return alert("Enter email and password");
+      alert("Enter email and password");
+      return;
     }
 
     try {
       setLoading(true);
 
       const res = await axios.post("/api/login", {
-        email,
-        password,
+        email: email.trim(),
+        password: password.trim(),
       });
 
-      // 🔐 Save token
+      if (!res.data?.token) {
+        throw new Error("Token not received");
+      }
+
+      // ✅ Store token
       localStorage.setItem("token", res.data.token);
 
-      // ✅ Redirect after login
-      router.push("/dashboard");
+      // ✅ Force redirect (more reliable than router.push sometimes)
+      window.location.href = "/dashboard";
+
     } catch (err: any) {
-      alert(err?.response?.data?.error || "Login failed");
+      console.error("LOGIN ERROR:", err);
+
+      alert(
+        err?.response?.data?.error ||
+        err.message ||
+        "Login failed"
+      );
     } finally {
       setLoading(false);
     }
@@ -64,7 +84,7 @@ export default function Login() {
           {loading ? "Logging in..." : "Login"}
         </button>
 
-        {/* 🔥 Signup Navigation */}
+        {/* Signup */}
         <p className="text-sm text-center mt-4">
           Don’t have an account?{" "}
           <button
